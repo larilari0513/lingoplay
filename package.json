@@ -1,0 +1,31 @@
+{
+  "name": "lingoplay",
+  "productName": "LingoPlay",
+  "version": "0.1.0",
+  "description": "게임 화면과 Discord 대화를 번역하는 데스크톱 앱",
+  "private": true,
+  "main": "src/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.cjs",
+    "check": "node scripts/check.cjs",
+    "smoke:api": "node scripts/smoke-api.cjs",
+    "package:mac": "electron-packager . LingoPlay --platform=darwin --arch=arm64 --out=dist --overwrite --asar --app-bundle-id=app.lingoplay.desktop --extend-info=assets/Info.plist --ignore='^/(test|scripts|artifacts|dist|README.md)' --icon=assets/icon.icns",
+    "package:win": "electron-packager . LingoPlay --platform=win32 --arch=x64 --out=dist --overwrite --asar --ignore='^/(test|scripts|artifacts|dist|README.md)' --icon=assets/icon.ico"
+  },
+  "dependencies": {
+    "ws": "8.21.3"
+  },
+  "devDependencies": {
+    "electron": "44.3.0",
+    "@electron/packager": "20.3.0"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "Unlicense",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/larilari0513/lingoplay.git"
+  }
+}

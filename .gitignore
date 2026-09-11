@@ -1,0 +1,7 @@
+node_modules/
+artifacts/
+.env*
+*.log
+.DS_Store
+dist/
+settings.json
