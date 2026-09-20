@@ -7,6 +7,8 @@ const { settings, boundedString, safeError } = require('./core.cjs');
 const { OpenAIService } = require('./api.cjs');
 const { TranslationStream } = require('./realtime.cjs');
 const { SpeechTurn } = require('./speech-turn.cjs');
+const { EconomyVoice } = require('./economy-voice.cjs');
+const { UsageMeter } = require('./usage.cjs');
 app.setName('LingoPlay');
 if (!app.isPackaged && process.env.LINGOPLAY_DATA_DIR) app.setPath('userData', path.resolve(process.env.LINGOPLAY_DATA_DIR));
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -14,7 +16,8 @@ let win, overlay, storeFile, config = settings(), savedKey = '', storageWarning 
 const streams = new Map();
 const sourceIds = new Set();
 const overlayState = { screen: '', voice: '', original: '', size: 22, locked: false };
-const api = new OpenAIService(() => savedKey || process.env.OPENAI_API_KEY || '');
+const meter = new UsageMeter(usage => emit('usage-update', usage));
+const api = new OpenAIService(() => savedKey || process.env.OPENAI_API_KEY || '', fetch, { meter, getProfile: () => config.translationProfile });
 const uiURL = pathToFileURL(path.join(__dirname, 'index.html')).href;
 const overlayURL = pathToFileURL(path.join(__dirname, 'overlay.html')).href;
 function mainSender(e) { return e.sender === win?.webContents && e.senderFrame?.url === uiURL; }
@@ -62,15 +65,24 @@ app.whenReady().then(() => {
   session.defaultSession.setPermissionRequestHandler((contents, permission, callback) => callback(contents === win?.webContents && contents.getURL() === uiURL && ['media', 'speaker-selection'].includes(permission)));
   session.defaultSession.setPermissionCheckHandler((contents, permission) => contents === win?.webContents && contents.getURL() === uiURL && ['media', 'speaker-selection'].includes(permission));
   makeWindows();
-  expose('bootstrap', () => ({ config, hasKey: Boolean(savedKey || process.env.OPENAI_API_KEY), keySource: savedKey ? 'saved' : process.env.OPENAI_API_KEY ? 'environment' : 'none', platform: process.platform, version: app.getVersion(), warning: storageWarning, screenPermission: process.platform === 'darwin' ? systemPreferences.getMediaAccessStatus('screen') : 'granted' }));
-  expose('save-settings', input => { config = settings(input); saveStore(); overlayState.size = config.overlaySize; publishOverlay(); return config; });
+  expose('bootstrap', () => ({ config, usage: meter.snapshot(), hasKey: Boolean(savedKey || process.env.OPENAI_API_KEY), keySource: savedKey ? 'saved' : process.env.OPENAI_API_KEY ? 'environment' : 'none', platform: process.platform, version: app.getVersion(), warning: storageWarning, screenPermission: process.platform === 'darwin' ? systemPreferences.getMediaAccessStatus('screen') : 'granted' }));
+  expose('save-settings', input => {
+    const next = settings(input), previous = config;
+    if (streams.size && ['target', 'outgoing', 'game', 'glossary', 'translationProfile', 'voiceMode', 'mic', 'incoming', 'output'].some(k => next[k] !== config[k])) throw new Error('음성 번역을 중지한 뒤 설정을 바꿔 주세요.');
+    config = next; try { saveStore(); } catch (e) { config = previous; throw e; }
+    if (['target', 'outgoing', 'game', 'glossary', 'translationProfile'].some(k => next[k] !== previous[k])) { api.abort('text'); api.abort('screen'); }
+    overlayState.size = config.overlaySize; publishOverlay(); return config;
+  });
   expose('save-key', key => {
     key = boundedString(key, 1000, 'API 키').trim(); if (key && !/^sk-[A-Za-z0-9_-]+$/.test(key)) throw new Error('OpenAI API 키 형식을 확인해 주세요.');
     if (key && !safeStorage.isEncryptionAvailable()) throw new Error('API 키 암호화를 사용할 수 없어요.');
-    const previous = savedKey; savedKey = key; try { saveStore(); } catch (e) { savedKey = previous; throw e; } api.cache.clear();
+    stopAll(); const previous = savedKey; savedKey = key; try { saveStore(); } catch (e) { savedKey = previous; throw e; } api.clearCache();
     return { hasKey: Boolean(savedKey || process.env.OPENAI_API_KEY), keySource: savedKey ? 'saved' : process.env.OPENAI_API_KEY ? 'environment' : 'none' };
   });
-  expose('check-api', () => api.check());
+  expose('check-api', () => api.check({ profile: config.translationProfile, voiceMode: config.voiceMode }));
+  expose('usage', () => meter.snapshot());
+  expose('cancel-screen', () => { api.abort('screen'); return true; });
+  expose('cancel-chat', () => { api.abort('text'); return true; });
   expose('list-sources', async () => {
     const sources = await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: { width: 320, height: 180 }, fetchWindowIcons: false });
     sourceIds.clear(); return sources.filter(s => !/^LingoPlay/.test(s.name)).map(s => { sourceIds.add(s.id); return { id: s.id, name: s.name, thumbnail: s.thumbnail.toDataURL() }; });
@@ -84,16 +96,20 @@ app.whenReady().then(() => {
       const image = source.thumbnail; return { image: image.toDataURL(), ...image.getSize() };
     } finally { captureBusy = false; }
   });
-  expose('translate-text', payload => api.translate(payload));
-  expose('translate-screen', payload => api.screen(payload));
+  expose('translate-text', payload => api.translate({ ...payload, profile: config.translationProfile }));
+  expose('translate-screen', payload => api.screen({ ...payload, profile: config.translationProfile }));
   expose('copy', text => { clipboard.writeText(boundedString(text, 20000)); return true; });
   expose('overlay', show => setOverlay(Boolean(show)));
   expose('overlay-content', data => { for (const k of ['screen', 'voice', 'original']) if (typeof data[k] === 'string') overlayState[k] = data[k].slice(0, 7000); publishOverlay(); });
   expose('voice-start', async ({ lane, target, token, synthesize }) => {
     if (!['incoming', 'outgoing'].includes(lane) || typeof token !== 'string' || token.length > 80) throw new Error('잘못된 음성 요청');
     if (streams.has(lane)) throw new Error('이전 음성 처리가 끝날 때까지 기다려 주세요.');
-    const Type = lane === 'outgoing' ? SpeechTurn : TranslationStream;
-    const stream = new Type(savedKey || process.env.OPENAI_API_KEY, target, event => { emit('voice-event', { lane, token, ...event }); if (event.type === 'closed' && streams.get(lane) === stream) streams.delete(lane); }, lane === 'outgoing' ? { game: config.game, glossary: config.glossary, synthesize: Boolean(synthesize) } : undefined);
+    const options = { game: config.game, glossary: config.glossary, profile: config.translationProfile, meter, synthesize: Boolean(synthesize) };
+    const key = savedKey || process.env.OPENAI_API_KEY;
+    const onEvent = event => { emit('voice-event', { lane, token, ...event }); if (event.type === 'closed' && streams.get(lane) === stream) streams.delete(lane); };
+    const stream = lane === 'outgoing' ? new SpeechTurn(key, target, onEvent, options)
+      : config.voiceMode === 'economy' ? new EconomyVoice(key, target, onEvent, options)
+      : new TranslationStream(key, target, onEvent, undefined, { meter });
     stream.clientToken = token; streams.set(lane, stream); try { await stream.start(); } catch (e) { stream.cancel(); throw e; } return true;
   });
   ipcMain.on('voice-audio', (e, { lane, token, bytes } = {}) => {
@@ -105,6 +121,7 @@ app.whenReady().then(() => {
   expose('voice-stop', ({ lane, token, immediate }) => { const stream = streams.get(lane); if (stream?.clientToken === token) immediate ? stream.cancel() : stream.finish(); });
   expose('stop-all', stopAll);
   expose('open-guide', () => shell.openExternal('https://vb-audio.com/Cable/'));
+  expose('open-billing', () => shell.openExternal('https://platform.openai.com/usage'));
   ipcMain.handle('overlay-control', (event, command) => {
     if (event.sender !== overlay?.webContents || event.senderFrame?.url !== overlayURL) return;
     if (command === 'hide') setOverlay(false);

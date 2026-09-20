@@ -22,4 +22,17 @@ test('silent turns produce no hallucinated transcript or paid request', async ()
 test('cancel during transcription discards late results', async () => {
   let resolve;const events=[],s=new SpeechTurn('sk-test','en',e=>events.push(e),{},()=>new Promise(r=>resolve=r));await s.start();s.append(speech());const pending=s.finish();s.cancel();resolve({ok:true,json:async()=>({text:'hello'})});await pending;assert.equal(events.some(e=>e.type==='translation'),false);assert.equal(s.key,'');
 });
+test('repeated normal stop neither aborts nor duplicates a pending speech translation', async () => {
+  let resolve, signal, calls = 0; const events = [];
+  const s = new SpeechTurn('sk-test', 'en', e => events.push(e), {}, async (url, options) => {
+    calls++;
+    if (url.endsWith('/audio/transcriptions')) { signal = options.signal; return new Promise(r => resolve = r); }
+    return { ok: true, json: async () => ({ output: [{ content: [{ type: 'output_text', text: 'Wait.' }] }] }) };
+  });
+  await s.start(); s.append(speech()); const pending = s.finish(); await s.finish();
+  assert.equal(signal.aborted, false); assert.equal(calls, 1);
+  resolve({ ok: true, json: async () => ({ text: '잠깐만.' }) }); await pending;
+  assert.equal(calls, 2); assert.equal(events.filter(e => e.type === 'translation').length, 1);
+  assert.equal(events.filter(e => e.type === 'closed').length, 1);
+});
 test('WAV header accurately describes mono 24kHz PCM16 without touching the filesystem',()=>{const data=wav(speech());assert.equal(data.toString('ascii',0,4),'RIFF');assert.equal(data.readUInt32LE(24),24000);assert.equal(data.readUInt16LE(22),1);assert.equal(data.readUInt32LE(40),12000);});
