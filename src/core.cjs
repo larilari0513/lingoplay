@@ -1,7 +1,7 @@
 'use strict';
 const crypto = require('node:crypto');
 const LANGUAGES = Object.freeze({ ko: '한국어', en: 'English', ja: '日本語', zh: '中文', es: 'Español', fr: 'Français', de: 'Deutsch', pt: 'Português', ru: 'Русский' });
-const DEFAULTS = Object.freeze({ target: 'ko', outgoing: 'en', game: '', glossary: '', interval: 4000, mic: '', incoming: '', output: '', overlaySize: 22 });
+const DEFAULTS = Object.freeze({ target: 'ko', outgoing: 'en', game: '', glossary: '', interval: 4000, mic: '', incoming: '', output: '', overlaySize: 22, translationProfile: 'balanced', voiceMode: 'economy' });
 function language(code) { if (!Object.hasOwn(LANGUAGES, code)) throw new Error('지원하는 언어를 선택해 주세요.'); return code; }
 function boundedString(value, max, field = '입력') { if (typeof value !== 'string' || value.length > max) throw new Error(`${field} 길이를 확인해 주세요. (최대 ${max}자)`); return value; }
 function settings(input = {}) {
@@ -10,6 +10,9 @@ function settings(input = {}) {
   for (const [key, max] of Object.entries({ game: 120, glossary: 3000, mic: 500, incoming: 500, output: 500 })) if (input[key] !== undefined) next[key] = boundedString(input[key], max);
   if (input.interval !== undefined) { const n = Number(input.interval); if (![3000, 4000, 6000, 10000].includes(n)) throw new Error('갱신 간격을 확인해 주세요.'); next.interval = n; }
   if (input.overlaySize !== undefined) next.overlaySize = Math.min(36, Math.max(16, Number(input.overlaySize) || 22));
+  for (const [key, values] of Object.entries({ translationProfile: ['balanced', 'economy', 'compatible'], voiceMode: ['economy', 'realtime'] })) {
+    if (input[key] !== undefined) { if (!values.includes(input[key])) throw new Error('번역 방식을 다시 선택해 주세요.'); next[key] = input[key]; }
+  }
   return next;
 }
 function normalizeRegion(r) {
