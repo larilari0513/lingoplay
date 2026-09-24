@@ -9,15 +9,15 @@ test('existing saved settings migrate to economical defaults without losing devi
   assert.equal(s.translationProfile, 'balanced'); assert.equal(s.voiceMode, 'economy'); assert.equal(s.mic, 'mic-1'); assert.equal(s.target, 'ja');
   assert.throws(() => settings({ voiceMode: 'arbitrary-model' }));
 });
-test('Luna turns off reasoning; a cheaper text profile does not route images to 4o mini', async () => {
+test('Luna turns off reasoning; the legacy text profile does not route images to 4o mini', async () => {
   const requests = [], api = new OpenAIService(() => 'sk-test', async (_url, opts) => { const body = JSON.parse(opts.body); requests.push(body); return reply(body.text ? '{"blocks":[]}' : 'hello'); });
   await api.translate({ text: '안녕', target: 'en' });
   await api.translate({ text: '안녕', target: 'en', profile: 'economy' });
   await api.screen({ image: 'data:image/png;base64,YQ==', target: 'ko', profile: 'economy' });
   await api.translate({ text: '안녕', target: 'en', profile: 'compatible' });
-  assert.deepEqual(requests.map(r => r.model), ['gpt-5.6-luna', 'gpt-4o-mini', 'gpt-5.6-luna', 'gpt-4.1-mini']);
+  assert.deepEqual(requests.map(r => r.model), ['gpt-6-luna', 'gpt-4o-mini', 'gpt-6-luna', 'gpt-4.1-mini']);
   assert.deepEqual(requests[0].reasoning, { effort: 'none' }); assert.equal(requests[1].reasoning, undefined);
-  assert.equal(requests[2].input[0].content[0].detail, 'original');
+  assert.equal(requests[2].input[0].content[0].detail, 'auto');
 });
 test('glossary filtering keeps reverse mappings and notes but not unrelated words or substring collisions', () => {
   const glossary = 'tank = 탱커\nhealer = 힐러\nleft = 왼쪽\nKeep player names unchanged';
@@ -47,7 +47,7 @@ test('incomplete output is not cached or displayed as a valid translation', asyn
   await assert.rejects(api.translate({ text: 'test', target: 'ko' }), /중간/); assert.equal(count, 2);
 });
 test('model-list checks reflect the selected features without requiring unused speech synthesis', async () => {
-  const api = new OpenAIService(() => 'sk-test', async () => ({ ok: true, json: async () => ({ data: [{ id: 'gpt-5.6-luna' }, { id: 'gpt-4o-mini-transcribe' }] }) }));
+  const api = new OpenAIService(() => 'sk-test', async () => ({ ok: true, json: async () => ({ data: [{ id: 'gpt-6-luna' }, { id: 'gpt-4o-mini-transcribe' }] }) }));
   assert.deepEqual(await api.check(), { text: true, screen: true, incoming: true, outgoing: true });
   assert.equal((await api.check({ voiceMode: 'realtime' })).incoming, false);
   assert.equal((await api.check({ synthesize: true })).outgoing, false);
