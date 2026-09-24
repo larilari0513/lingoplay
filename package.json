@@ -1,7 +1,7 @@
 {
   "name": "lingoplay",
   "productName": "LingoPlay",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "게임 화면과 Discord 대화를 번역하는 데스크톱 앱",
   "private": true,
   "main": "src/main.cjs",

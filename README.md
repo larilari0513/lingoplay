@@ -1,6 +1,13 @@
-# LingoPlay 0.2 — 게임 번역기
+# LingoPlay 0.2.1 — 게임 번역기
 
 게임 화면의 글자, 채팅, Discord 음성을 AI API로 번역하는 데스크톱 앱입니다. 한국어↔영어가 기본이며 설정에서 언어를 바꿀 수 있습니다.
+
+## 0.2.1 변경 사항
+
+- 기본 화면·문장 번역을 **GPT-6 Luna**로 업데이트했습니다. 이전에 저장한 균형 프로필도 새 모델을 사용하며 언어·장치·용어집은 유지됩니다.
+- 표준 단가와 캐시 읽기·쓰기 비용 계산을 갱신했습니다. Luna의 추론은 계속 끕니다.
+- GPT-4o mini가 이제 Luna보다 비싸므로 기존 ‘텍스트 절약’ 선택지를 **4o mini · 비교용**으로 표시합니다. 이미 선택한 모델 조합은 유지하며 설정에서 균형으로 바꿀 수 있습니다.
+- 화면은 계속 클라우드 AI가 읽습니다. 새 Luna의 세부 이미지 크기 규칙은 공식 표에 아직 없어 `detail: auto`로 모델 기본 처리를 사용합니다. 화면 영역 선택·크기 제한은 유지합니다.
 
 ## 0.2 변경 사항
 
@@ -23,11 +30,11 @@ GPT-6 Astra는 이 앱을 **제작한 모델**이며, 앱 실행 시 번역에 �
 
 ## 다운로드
 
-[v0.2.0 개발 미리보기](https://github.com/larilari0513/lingoplay/releases/tag/v0.2.0)에서 운영체제에 맞는 ZIP을 받으세요.
+[v0.2.1 개발 미리보기](https://github.com/larilari0513/lingoplay/releases/tag/v0.2.1)에서 운영체제에 맞는 ZIP을 받으세요.
 
-- Mac Apple Silicon: `LingoPlay-0.2.0-Mac-AppleSilicon.zip`
-- Windows x64: `LingoPlay-0.2.0-Windows-x64.zip`
-- 소스 코드: `LingoPlay-0.2.0-Source.zip` 또는 이 저장소를 복제하세요.
+- Mac Apple Silicon: `LingoPlay-0.2.1-Mac-AppleSilicon.zip`
+- Windows x64: `LingoPlay-0.2.1-Windows-x64.zip`
+- 소스 코드: `LingoPlay-0.2.1-Source.zip` 또는 이 저장소를 복제하세요.
 
 ## 실행
 
@@ -108,25 +115,26 @@ Discord 데스크톱 앱과 가상 오디오 장치를 사용합니다. 번역�
 
 | 방식 | 화면 인식 + 번역 | 채팅·인식된 음성의 번역 |
 |---|---|---|
-| 균형 · 기본값 | GPT-5.6 Luna | GPT-5.6 Luna |
-| 텍스트 절약 | GPT-5.6 Luna | GPT-4o mini |
+| 균형 · 기본값 | GPT-6 Luna | GPT-6 Luna |
+| 4o mini · 비교용 | GPT-6 Luna | GPT-4o mini |
 | 기존 방식 | GPT-4.1 mini | GPT-4.1 mini |
 
-텍스트 단가가 낮다고 이미지 비용까지 낮은 것은 아니므로, 텍스트 절약을 골라도 화면을 GPT-4o mini로 보내지 않습니다. Luna에는 `reasoning.effort: none`을 명시합니다. 모델 접근 오류는 사용자에게 알리며, 조용히 다른 모델로 재시도해 중복 비용을 만들지 않습니다.
+GPT-6 Luna의 현재 텍스트 단가는 GPT-4o mini보다 낮습니다. 비교용 프로필도 화면은 Luna를 사용합니다. 이미지 비용은 실제 입력 토큰 수에 따라 달라집니다. Luna에는 `reasoning.effort: none`을 명시합니다. 모델 접근 오류는 사용자에게 알리며, 조용히 다른 모델로 재시도해 중복 비용을 만들지 않습니다.
 
-2026-09-20 공식 표준 API 요금 기준, USD·세금 제외:
+2026-09-24 공식 표준 API 요금 기준, USD·세금 제외:
 
 | 모델 | 입력 / 캐시 입력 / 출력 (100만 토큰당) |
 |---|---|
-| GPT-5.6 Luna | $0.20 / $0.02 / $1.20 |
+| GPT-6 Luna | $0.10 / $0.01 / $0.50 |
 | GPT-4o mini | $0.15 / $0.075 / $0.60 |
 | GPT-4.1 mini | $0.40 / $0.10 / $1.60 |
 
+- GPT-6 Luna 캐시 쓰기는 100만 토큰당 $0.125입니다. 입력이 272,000토큰을 넘으면 입력·캐시 요금은 2배, 출력은 1.5배이며 전체 요청에 적용합니다. 앱은 API가 반환한 캐시 쓰기 토큰도 계산합니다.
 - 절약 음성 인식은 `gpt-4o-mini-transcribe`: **전송 오디오 1시간당 약 $0.18 + 문장 번역비**입니다. 실제 인식 요금은 토큰 기반이며 분당 $0.003은 공식 추정치입니다. 무음 제거율과 문장 길이에 따라 플레이 1시간의 비용은 달라집니다.
 - 실시간 모드는 `gpt-realtime-translate`: **전송 오디오 1시간당 $2.04**입니다. 지속 수신 중에는 조용한 오디오도 전송됩니다. 두 모드의 비용 차이를 번역 품질이나 전체 비용의 절감률로 단정할 수는 없습니다.
 - 내 음성은 `gpt-4o-mini-transcribe` → 선택 모델의 번역 → 송출을 켠 경우에만 `gpt-4o-mini-tts`를 호출합니다. TTS는 텍스트 입력 $0.60 / 음성 출력 $12.00 (각 100만 토큰당)이며 이 앱의 PCM 응답에는 토큰 사용량이 없어 **합계에서 제외**하고 미산정으로 표시합니다.
-- 하단 **이번 실행 · 예상 비용**을 누르면 화면·문장·음성별 비용과 재사용 횟수를 볼 수 있습니다. 번역은 응답의 사용 토큰과 캐시 입력, 음성은 전송 길이로 계산합니다. 취소·통신 실패 뒤 서버 처리 여부가 불명확한 번역 요청도 미산정으로 표시합니다. 앱을 종료하면 초기화되며 청구서가 아닙니다. 실제 비용은 [OpenAI 사용량](https://platform.openai.com/usage)에서 확인하세요.
-- 단가 출처: [Luna](https://developers.openai.com/api/docs/models/gpt-5.6-luna), [GPT-4o mini](https://developers.openai.com/api/docs/models/gpt-4o-mini), [GPT-4.1 mini](https://developers.openai.com/api/docs/models/gpt-4.1-mini), [음성 및 전체 요금](https://developers.openai.com/api/docs/pricing). 단가가 바뀌면 `src/models.cjs`와 `src/usage.cjs`를 갱신해야 합니다.
+- 하단 **이번 실행 · 예상 비용**을 누르면 화면·문장·음성별 비용과 재사용 횟수를 볼 수 있습니다. 번역은 응답의 사용 토큰과 캐시 읽기·쓰기, 음성은 전송 길이로 계산합니다. 취소·통신 실패 뒤 서버 처리 여부가 불명확한 번역 요청도 미산정으로 표시합니다. 앱을 종료하면 초기화되며 청구서가 아닙니다. 실제 비용은 [OpenAI 사용량](https://platform.openai.com/usage)에서 확인하세요.
+- 단가 출처: [Luna](https://developers.openai.com/api/docs/models/gpt-6-luna), [GPT-4o mini](https://developers.openai.com/api/docs/models/gpt-4o-mini), [GPT-4.1 mini](https://developers.openai.com/api/docs/models/gpt-4.1-mini), [음성 및 전체 요금](https://developers.openai.com/api/docs/pricing). 단가가 바뀌면 `src/models.cjs`와 `src/usage.cjs`를 갱신해야 합니다.
 
 - 원음·화면은 시작한 기능에서만 OpenAI로 전송됩니다. 화면 선택 미리보기는 로컬 처리입니다. 번역 API 요청에는 `store:false`를 사용하지만 이것이 제공업체의 모든 로그 보관을 없애는 의미는 아닙니다. [OpenAI 데이터 정책](https://developers.openai.com/api/docs/guides/your-data)을 참고하세요.
 - 녹음·화면 이미지·번역 기록을 앱이 디스크에 자동 저장하지 않습니다. 메모리의 번역 기록과 캐시는 종료 시 삭제됩니다. 복사한 내용은 운영체제 클립보드에 남습니다.
@@ -147,6 +155,8 @@ Discord 데스크톱 앱과 가상 오디오 장치를 사용합니다. 번역�
 실제 사례는 `--dataset /path/to/cases.json`으로 전달합니다. 형식은 `test/fixtures/translation-eval.json`을 참고하세요. 화면 사례는 `text` 대신 데이터 파일 기준의 `imagePath`(PNG/JPEG)를 지정합니다. 같은 화면 모델을 쓰는 프로필은 중복 호출하지 않습니다. 보고서는 원문·번역을 포함하므로 `artifacts/`는 Git에서 제외합니다.
 
 각 사례의 `review`를 기준으로 **부정·좌우 방향·숫자·고유명사·게임 용어·자연스러움**을 사람이 평가하세요. 합성 20문장만으로 실제 게임의 품질 순위를 주장하지 않습니다. 실사용 대사·화면을 추가하고 같은 네트워크에서 반복 측정한 뒤 기본 모델 변경 여부를 판단하세요.
+
+2026-09-24 (0.2.1) 검증: 자동 테스트 44개, 문법·화면 요소 검사, 모델 비교 도구의 무료 검증이 통과했습니다. 테스트용 API 키가 없어 GPT-6 Luna의 실제 번역 품질·지연·화면 인식은 아직 검증하지 않았습니다.
 
 2026-09-20 검증: 자동 테스트 42개, 문법·화면 요소 검사, 모델 비교 도구의 무료 검증이 통과했습니다. Mac에서 0.2 앱 실행, 음성 모드 전환, 번역 프로필 저장, 예상 비용 상세 화면을 확인했습니다. 이번 환경에는 API 키가 없어 새 모델의 실제 번역 품질·지연·실제 음성 연결은 검증하지 않았습니다.
 
