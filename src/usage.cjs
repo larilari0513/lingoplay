@@ -12,7 +12,11 @@ class UsageMeter {
     if (!rates || !Number.isFinite(usage?.input_tokens) || !Number.isFinite(usage?.output_tokens)) { this.unpriced++; this.changed(); return; }
     const input = Math.max(0, usage.input_tokens), output = Math.max(0, usage.output_tokens);
     const cached = Math.max(0, Math.min(input, usage.input_tokens_details?.cached_tokens || 0));
-    row.usd += ((input - cached) * rates.input + cached * rates.cached + output * rates.output) / 1e6;
+    const written = Math.max(0, Math.min(input - cached, usage.input_tokens_details?.cache_write_tokens || 0));
+    const long = rates.longContext !== undefined && input > rates.longContext;
+    row.usd += ((
+      (input - cached - written) * rates.input + cached * rates.cached + written * (rates.cacheWrite ?? rates.input)
+    ) * (long ? 2 : 1) + output * rates.output * (long ? 1.5 : 1)) / 1e6;
     this.changed();
   }
   audio(kind, model, seconds, request = true) {
@@ -23,6 +27,6 @@ class UsageMeter {
     this.changed();
   }
   uncertain(kind) { this.row(kind).requests++; this.unpriced++; this.changed(); }
-  snapshot() { const rows = [...this.rows.values()].map(r => ({ ...r })); return { usd: rows.reduce((n, r) => n + r.usd, 0), rows, cacheHits: this.cacheHits, unpriced: this.unpriced, priceDate: '2026-09-20' }; }
+  snapshot() { const rows = [...this.rows.values()].map(r => ({ ...r })); return { usd: rows.reduce((n, r) => n + r.usd, 0), rows, cacheHits: this.cacheHits, unpriced: this.unpriced, priceDate: '2026-09-24' }; }
 }
 module.exports = { UsageMeter, AUDIO_PER_MINUTE };
