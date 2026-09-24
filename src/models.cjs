@@ -1,14 +1,14 @@
 'use strict';
 
-// Standard API rates checked against the official model pages on 2026-09-20.
+// Standard API rates checked against the official model pages on 2026-09-24.
 const MODELS = Object.freeze({
-  'gpt-5.6-luna': { input: 0.20, cached: 0.02, output: 1.20, reasoning: { effort: 'none' } },
+  'gpt-6-luna': { input: 0.10, cached: 0.01, cacheWrite: 0.125, output: 0.50, longContext: 272000, reasoning: { effort: 'none' } },
   'gpt-4o-mini': { input: 0.15, cached: 0.075, output: 0.60 },
   'gpt-4.1-mini': { input: 0.40, cached: 0.10, output: 1.60 },
 });
 const PROFILES = Object.freeze({
-  balanced: { text: 'gpt-5.6-luna', screen: 'gpt-5.6-luna' },
-  economy: { text: 'gpt-4o-mini', screen: 'gpt-5.6-luna' },
+  balanced: { text: 'gpt-6-luna', screen: 'gpt-6-luna' },
+  economy: { text: 'gpt-4o-mini', screen: 'gpt-6-luna' },
   compatible: { text: 'gpt-4.1-mini', screen: 'gpt-4.1-mini' },
 });
 function modelFor(profile = 'balanced', kind = 'text') {
